@@ -1,44 +1,29 @@
 import React, { useEffect, useState } from 'react';
 
-const MovieList = () => {
-    const [movies, setMovies] = useState([]);
+const NowPlayingMovies = () => {
     const [snapshots, setSnapshots] = useState([]);
     const [selectedSnapshot, setSelectedSnapshot] = useState("");
     const [snapshotMovies, setSnapshotMovies] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [sortField, setSortField] = useState("title"); // Default sort field
-    const [sortDirection, setSortDirection] = useState("asc"); // Default sort direction
+    const [sortField, setSortField] = useState("title");
+    const [sortDirection, setSortDirection] = useState("asc");
 
-    // Hent filmene fra backend
     useEffect(() => {
-        fetch('http://localhost:8080/movies/now-playing')
-            .then((response) => response.json())
-            .then((data) => {
-                console.log("Fetched movies:", data);
-                setMovies(data.results);
-            })
-            .catch((error) => {
-                console.error('Error fetching movies:', error);
-            });
-
-        // Load all available snapshots when component mounts
         fetchAllSnapshots();
     }, []);
 
-    // Hent alle tilgængelige snapshots
     const fetchAllSnapshots = () => {
-        fetch('http://localhost:8080/movies/snapshots')
-            .then((response) => response.json())
+        fetch('http://localhost:8080/movies/snapshot')
+            .then((res) => res.json())
             .then((data) => {
-                console.log("All snapshots:", data);
-                setSnapshots(data);
+                setSnapshots(Array.isArray(data) ? data : []);
             })
-            .catch((error) => {
-                console.error('Error fetching snapshots:', error);
+            .catch((err) => {
+                console.error("Error fetching snapshots:", err);
+                setSnapshots([]);
             });
     };
 
-    // Hent snapshots for de nuværende "now-playing" film
     const fetchSnapshotsForNowPlaying = async () => {
         try {
             setLoading(true);
@@ -46,45 +31,51 @@ const MovieList = () => {
                 method: "POST",
             });
 
-            if (!response.ok) {
-                console.error("Failed to fetch and save movies: ", response);
-                throw new Error("Failed to fetch and save movies");
-            }
+            if (!response.ok) throw new Error("Failed to fetch and save movies");
 
             const data = await response.json();
-            console.log("Snapshot created:", data);
-
-            // Opdater listen af snapshots
             fetchAllSnapshots();
-            // Automatisk vælg den nye snapshot
-            setSelectedSnapshot(data.id.toString());
-            fetchMoviesFromSnapshot(data.id);
+
+            if (data && data.id) {
+                const snapshotId = data.id.toString();
+                setSelectedSnapshot(snapshotId);
+                fetchMoviesFromSnapshot(snapshotId);
+            }
         } catch (error) {
-            console.error("Error saving movies:", error);
+            alert("Error: " + error.message);
+            console.error(error);
         } finally {
             setLoading(false);
         }
     };
 
-    // Fetch movies from a specific snapshot
     const fetchMoviesFromSnapshot = (snapshotId) => {
         setLoading(true);
-        fetch(`http://localhost:8080/movies/${snapshotId}`)
-            .then((response) => response.json())
-            .then((data) => {
-                console.log("Snapshot movies:", data);
-                setSnapshotMovies(data);
-                setLoading(false);
+        fetch(`http://localhost:8080/movies/snapshot/${snapshotId}`)
+            .then(res => res.json())
+            .then(data => {
+                const extractedMovies = data.map(item => {
+                    const movie = item.movie || {};
+                    return {
+                        id: movie.id,
+                        title: movie.title,
+                        release_date: movie.releaseDate,
+                        vote_average: movie.voteAverage != null ? movie.voteAverage : null, // 👈 håndter null-værdi
+                        vote_count: movie.voteCount != null ? movie.voteCount : null // 👈 håndter null-værdi
+                    };
+                });
+                setSnapshotMovies(extractedMovies);
             })
-            .catch((error) => {
-                console.error('Error fetching snapshot movies:', error);
-                setLoading(false);
-            });
+            .catch(err => {
+                console.error("Error fetching snapshot movies:", err);
+                setSnapshotMovies([]);
+            })
+            .finally(() => setLoading(false));
     };
 
-    // Håndterer ændring i dropdown-menuen
-    const handleSnapshotChange = (event) => {
-        const snapshotId = event.target.value;
+
+    const handleSnapshotChange = (e) => {
+        const snapshotId = e.target.value;
         setSelectedSnapshot(snapshotId);
 
         if (snapshotId) {
@@ -94,137 +85,108 @@ const MovieList = () => {
         }
     };
 
-    // Handle sorting change
     const handleSortChange = (field) => {
-        // If clicking the same field, toggle direction
         if (field === sortField) {
             setSortDirection(sortDirection === "asc" ? "desc" : "asc");
         } else {
-            // New field, default to ascending
             setSortField(field);
             setSortDirection("asc");
         }
     };
 
-    // Sort function for movies
-    const sortMovies = (moviesToSort) => {
-        if (!moviesToSort) return [];
+    const sortMovies = (movies) => {
+        if (!Array.isArray(movies)) return [];
 
-        return [...moviesToSort].sort((a, b) => {
-            let valueA, valueB;
+        return [...movies].sort((a, b) => {
+            let valA = a[sortField];
+            let valB = b[sortField];
 
             if (sortField === "title") {
-                valueA = a.title || "";
-                valueB = b.title || "";
+                valA = valA || "";
+                valB = valB || "";
                 return sortDirection === "asc"
-                    ? valueA.localeCompare(valueB)
-                    : valueB.localeCompare(valueA);
-            }
-            else if (sortField === "vote_average" || sortField === "vote_count") {
-                valueA = Number(a[sortField] || 0);
-                valueB = Number(b[sortField] || 0);
-            }
-            else if (sortField === "release_date") {
-                valueA = a.release_date ? new Date(a.release_date) : new Date(0);
-                valueB = b.release_date ? new Date(b.release_date) : new Date(0);
+                    ? valA.localeCompare(valB)
+                    : valB.localeCompare(valA);
             }
 
-            if (valueA === valueB) return 0;
-
-            if (sortDirection === "asc") {
-                return valueA > valueB ? 1 : -1;
+            if (sortField === "release_date") {
+                valA = valA ? new Date(valA) : new Date(0);
+                valB = valB ? new Date(valB) : new Date(0);
             } else {
-                return valueA < valueB ? 1 : -1;
+                valA = Number(valA || 0);
+                valB = Number(valB || 0);
             }
+
+            return sortDirection === "asc" ? valA - valB : valB - valA;
         });
     };
 
-    // Get sorted movies
     const sortedSnapshotMovies = sortMovies(snapshotMovies);
-    const sortedMovies = sortMovies(movies);
 
-    // Helper to render sort buttons
     const renderSortButtons = () => (
         <div className="sort-controls">
             <span>Sort by: </span>
-            <button
-                onClick={() => handleSortChange("title")}
-                className={sortField === "title" ? "active" : ""}
-            >
-                Title {sortField === "title" && (sortDirection === "asc" ? "↑" : "↓")}
-            </button>
-            <button
-                onClick={() => handleSortChange("release_date")}
-                className={sortField === "release_date" ? "active" : ""}
-            >
-                Release Date {sortField === "release_date" && (sortDirection === "asc" ? "↑" : "↓")}
-            </button>
-            <button
-                onClick={() => handleSortChange("vote_average")}
-                className={sortField === "vote_average" ? "active" : ""}
-            >
-                Rating {sortField === "vote_average" && (sortDirection === "asc" ? "↑" : "↓")}
-            </button>
-            <button
-                onClick={() => handleSortChange("vote_count")}
-                className={sortField === "vote_count" ? "active" : ""}
-            >
-                Votes {sortField === "vote_count" && (sortDirection === "asc" ? "↑" : "↓")}
-            </button>
+            {["title", "release_date", "vote_average", "vote_count"].map(field => (
+                <button
+                    key={field}
+                    onClick={() => handleSortChange(field)}
+                    className={sortField === field ? "active" : ""}
+                >
+                    {field.replace("_", " ").toUpperCase()} {sortField === field && (sortDirection === "asc" ? "↑" : "↓")}
+                </button>
+            ))}
         </div>
     );
 
+    const renderSnapshotMovies = () => {
+        if (loading) return <p>Loading...</p>;
+        if (!selectedSnapshot) return <p>No snapshot selected.</p>;
+        if (sortedSnapshotMovies.length === 0) return <p>No movies found in this snapshot.</p>;
+
+        const snapshot = snapshots.find(s => s.id.toString() === selectedSnapshot);
+        const timestamp = snapshot?.createdAt ? new Date(snapshot.createdAt).toLocaleString() : "";
+
+        return (
+            <div>
+                <h2>Snapshot #{selectedSnapshot} – {timestamp}</h2>
+                <ul>
+                    {sortedSnapshotMovies.map(movie => (
+                        <li key={movie.id}>
+                            <strong>{movie.title}</strong> – {movie.release_date || "Unknown date"}
+                            <br />
+                            Rating: {movie.vote_average} /10 – Votes: {movie.vote_count}
+                        </li>
+                    ))}
+                </ul>
+            </div>
+        );
+    };
+
     return (
         <div>
-            <h1>Now Playing Movies</h1>
-            <button
-                onClick={fetchSnapshotsForNowPlaying}
-                disabled={loading}
-            >
-                {loading ? "Loading..." : "Fetch and Save Movies"}
+            <h1>Now Playing Snapshot Viewer</h1>
+
+            <button onClick={fetchSnapshotsForNowPlaying} disabled={loading}>
+                {loading ? "Loading..." : "Fetch and Save New Snapshot"}
             </button>
 
-            <h2>Saved Snapshots</h2>
-            <select onChange={handleSnapshotChange} value={selectedSnapshot}>
-                <option value="">Select a Snapshot</option>
-                {snapshots.map((snapshot) => (
-                    <option key={snapshot.id} value={snapshot.id}>
-                        Snapshot from {new Date(snapshot.createdAt).toLocaleString()}
-                    </option>
-                ))}
-            </select>
-
-            {loading && <p>Loading...</p>}
+            <div style={{ marginTop: "1rem" }}>
+                <label htmlFor="snapshotSelect">Choose Snapshot: </label>
+                <select id="snapshotSelect" value={selectedSnapshot} onChange={handleSnapshotChange}>
+                    <option value="">-- Select a Snapshot --</option>
+                    {snapshots.map(snapshot => (
+                        <option key={snapshot.id} value={snapshot.id}>
+                            #{snapshot.id} – {new Date(snapshot.createdAt).toLocaleString()}
+                        </option>
+                    ))}
+                </select>
+            </div>
 
             {renderSortButtons()}
 
-            {selectedSnapshot && sortedSnapshotMovies.length > 0 && (
-                <div>
-                    <h3>Movies from Selected Snapshot</h3>
-                    <ul>
-                        {sortedSnapshotMovies.map((movie) => (
-                            <li key={movie.id}>
-                                <strong>{movie.title}</strong> – {movie.release_date}
-                                <br />
-                                Rating: {movie.vote_average || 'N/A'} {movie.vote_average ? '/10' : ''} – Votes: {movie.vote_count || 0}
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            )}
-
-            <h2>Current Movies</h2>
-            <ul>
-                {sortedMovies.map((movie) => (
-                    <li key={movie.id}>
-                        <strong>{movie.title}</strong> – {movie.release_date}
-                        <br />
-                        Rating: {movie.vote_average || 'N/A'} {movie.vote_average ? '/10' : ''} – Votes: {movie.vote_count || 0}
-                    </li>
-                ))}
-            </ul>
+            {renderSnapshotMovies()}
         </div>
     );
 };
 
-export default MovieList;
+export default NowPlayingMovies;

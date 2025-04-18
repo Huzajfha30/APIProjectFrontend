@@ -60,8 +60,8 @@ const NowPlayingMovies = () => {
                         id: movie.id,
                         title: movie.title,
                         release_date: movie.releaseDate,
-                        vote_average: movie.voteAverage != null ? movie.voteAverage : null, // 👈 håndter null-værdi
-                        vote_count: movie.voteCount != null ? movie.voteCount : null // 👈 håndter null-værdi
+                        rating: movie.rating, // Brug rating i stedet for vote_average
+                        votes: movie.votes      // Brug votes i stedet for vote_count
                     };
                 });
                 setSnapshotMovies(extractedMovies);
@@ -126,7 +126,7 @@ const NowPlayingMovies = () => {
     const renderSortButtons = () => (
         <div className="sort-controls">
             <span>Sort by: </span>
-            {["title", "release_date", "vote_average", "vote_count"].map(field => (
+            {["title", "release_date", "rating", "votes"].map(field => (
                 <button
                     key={field}
                     onClick={() => handleSortChange(field)}
@@ -154,7 +154,7 @@ const NowPlayingMovies = () => {
                         <li key={movie.id}>
                             <strong>{movie.title}</strong> – {movie.release_date || "Unknown date"}
                             <br />
-                            Rating: {movie.vote_average} /10 – Votes: {movie.vote_count}
+                            Rating: {movie.rating} /10 – Votes: {movie.votes}
                         </li>
                     ))}
                 </ul>

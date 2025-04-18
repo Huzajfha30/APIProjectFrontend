@@ -13,9 +13,11 @@ const NowPlayingMovies = () => {
     }, []);
 
     const fetchAllSnapshots = () => {
+        console.log("Fetching all snapshots...");
         fetch('http://localhost:8080/movies/snapshot')
             .then((res) => res.json())
             .then((data) => {
+                console.log("Fetched snapshots:", data);  // Log de hentede snapshots
                 setSnapshots(Array.isArray(data) ? data : []);
             })
             .catch((err) => {
@@ -27,6 +29,7 @@ const NowPlayingMovies = () => {
     const fetchSnapshotsForNowPlaying = async () => {
         try {
             setLoading(true);
+            console.log("Fetching and saving new movies...");
             const response = await fetch("http://localhost:8080/movies/fetch-movies", {
                 method: "POST",
             });
@@ -34,6 +37,8 @@ const NowPlayingMovies = () => {
             if (!response.ok) throw new Error("Failed to fetch and save movies");
 
             const data = await response.json();
+            console.log("Movies fetched and saved:", data);  // Log response data after saving
+
             fetchAllSnapshots();
 
             if (data && data.id) {
@@ -54,17 +59,18 @@ const NowPlayingMovies = () => {
         fetch(`http://localhost:8080/movies/snapshot/${snapshotId}`)
             .then(res => res.json())
             .then(data => {
-                const extractedMovies = data.map(item => {
-                    const movie = item.movie || {};
+
+                const extractedMovies = data.map(movieSnapshot => {
+                    const movie = movieSnapshot.movie || {};
                     return {
                         id: movie.id,
                         title: movie.title,
                         release_date: movie.releaseDate,
-                        rating: movie.rating, // Brug rating i stedet for vote_average
-                        votes: movie.votes      // Brug votes i stedet for vote_count
-
+                        rating: movieSnapshot.rating, // Brug rating i stedet for vote_average
+                        votes: movieSnapshot.votes      // Brug votes i stedet for vote_count
                     };
                 });
+
                 setSnapshotMovies(extractedMovies);
             })
             .catch(err => {
@@ -73,7 +79,6 @@ const NowPlayingMovies = () => {
             })
             .finally(() => setLoading(false));
     };
-
 
     const handleSnapshotChange = (e) => {
         const snapshotId = e.target.value;
@@ -153,8 +158,8 @@ const NowPlayingMovies = () => {
                 <ul>
                     {sortedSnapshotMovies.map(movie => (
                         <li key={movie.id}>
-                            <strong>{movie.title}</strong> – {movie.release_date}
-                            <br/>
+                            <strong>{movie.title}</strong> – {new Date(movie.release_date).toISOString().slice(0, 10)}
+                            <br />
                             Rating: {movie.rating} /10 – Votes: {movie.votes}
                         </li>
                     ))}

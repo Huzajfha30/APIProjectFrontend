@@ -62,6 +62,7 @@ const NowPlayingMovies = () => {
                         release_date: movie.releaseDate,
                         rating: movie.rating, // Brug rating i stedet for vote_average
                         votes: movie.votes      // Brug votes i stedet for vote_count
+
                     };
                 });
                 setSnapshotMovies(extractedMovies);
@@ -144,7 +145,7 @@ const NowPlayingMovies = () => {
         if (sortedSnapshotMovies.length === 0) return <p>No movies found in this snapshot.</p>;
 
         const snapshot = snapshots.find(s => s.id.toString() === selectedSnapshot);
-        const timestamp = snapshot?.createdAt ? new Date(snapshot.createdAt).toLocaleString() : "";
+        const timestamp = snapshot?.createdAt ? new Date(snapshot.createdAt).toLocaleString() : " ";
 
         return (
             <div>
@@ -152,8 +153,8 @@ const NowPlayingMovies = () => {
                 <ul>
                     {sortedSnapshotMovies.map(movie => (
                         <li key={movie.id}>
-                            <strong>{movie.title}</strong> – {movie.release_date || "Unknown date"}
-                            <br />
+                            <strong>{movie.title}</strong> – {movie.release_date}
+                            <br/>
                             Rating: {movie.rating} /10 – Votes: {movie.votes}
                         </li>
                     ))}

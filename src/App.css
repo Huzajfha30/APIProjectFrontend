@@ -40,3 +40,27 @@
 .read-the-docs {
   color: #888;
 }
+
+
+
+
+
+.movie-list {
+  list-style: none;
+  padding: 0;
+}
+
+.movie-item {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border-bottom: 1px solid #ddd;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+}
+
+.movie-title {
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+

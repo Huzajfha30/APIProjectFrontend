@@ -21,6 +21,7 @@ const UpcomingMovies = () => {
         }
     };
 
+
     const fetchMoviesForSnapshot = async (snapshotId) => {
         try {
             const res = await fetch(`http://localhost:8080/movies/upcoming-snapshots/${snapshotId}`);
@@ -30,6 +31,29 @@ const UpcomingMovies = () => {
             console.error("Fejl ved hentning af film:", err);
         }
     };
+
+    const handleDeleteSnapshot = async (snapshotId) => {
+        if (!window.confirm('Er du sikker på at du vil slette dette snapshot?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`http://localhost:8080/movies/upcoming-snapshot/${snapshotId}`, {
+                method: 'DELETE',
+            });
+
+            if (response.ok) {
+                await fetchSnapshotDates();
+                // Rest of your handling code...
+            } else {
+                throw new Error('Failed to delete snapshot');
+            }
+        } catch (error) {
+            console.error("Error deleting snapshot:", error);
+            alert("Kunne ikke slette snapshot: " + error.message);
+        }
+    };
+
 
     const handleUpdate = async () => {
         setLoading(true);
@@ -63,18 +87,29 @@ const UpcomingMovies = () => {
                         {loading ? "Opdaterer..." : "Opdater"}
                     </button>
 
-                    <select
-                        value={selectedSnapshot}
-                        onChange={(e) => setSelectedSnapshot(e.target.value)}
-                        className="border border-gray-300 rounded-lg px-4 py-2 shadow-sm bg-white"
-                    >
-                        <option value="">Vælg snapshot-dato</option>
-                        {snapshots.map((snap) => (
-                            <option key={snap.id} value={snap.id}>
-                                {new Date(snap.createdAt).toLocaleString("da-DK")}
-                            </option>
-                        ))}
-                    </select>
+                    <div className="flex items-center">
+                        <select
+                            value={selectedSnapshot}
+                            onChange={(e) => setSelectedSnapshot(e.target.value)}
+                            className="border border-gray-300 rounded-lg px-4 py-2 shadow-sm bg-white"
+                        >
+                            <option value="">Vælg snapshot-dato</option>
+                            {snapshots.map((snap) => (
+                                <option key={snap.id} value={snap.id}>
+                                    {new Date(snap.createdAt).toLocaleString("da-DK")}
+                                </option>
+                            ))}
+                        </select>
+
+                        {selectedSnapshot && (
+                            <button
+                                onClick={() => handleDeleteSnapshot(selectedSnapshot)}
+                                className="ml-2 bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition"
+                            >
+                                Slet
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -109,6 +144,7 @@ const UpcomingMovies = () => {
                     </div>
                 ))}
             </div>
+
         </div>
     );
 };

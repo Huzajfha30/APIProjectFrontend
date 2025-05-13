@@ -12,6 +12,7 @@ const NowPlayingMovies = () => {
         fetchAllSnapshots();
     }, []);
 
+
     const fetchAllSnapshots = () => {
         console.log("Fetching all snapshots...");
         fetch('http://localhost:8080/movies/snapshot')
@@ -24,6 +25,35 @@ const NowPlayingMovies = () => {
                 console.error("Error fetching snapshots:", err);
                 setSnapshots([]);
             });
+    };
+
+    const handleDeleteSnapshot = async (snapshotId) => {
+        // Ask for confirmation before deletion
+        if (!window.confirm('sure u wanna delete this snapshot?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`http://localhost:8080/movies/snapshot/${snapshotId}`, {
+                method: 'DELETE',
+            });
+
+            if (response.ok) {
+                // hvis ok, refresh snapshot list
+                fetchAllSnapshots();
+
+                // If the deleted snapshot was selected, reset selection
+                if (selectedSnapshot === snapshotId) {
+                    setSelectedSnapshot("");
+                    setSnapshotMovies([]);
+                }
+            } else {
+                throw new Error('Failed to delete snapshot');
+            }
+        } catch (error) {
+            console.error("Error deleting snapshot:", error);
+            alert("Kunne ikke slette snapshot: " + error.message);
+        }
     };
 
     const fetchSnapshotsForNowPlaying = async () => {
@@ -186,6 +216,14 @@ const NowPlayingMovies = () => {
                         </option>
                     ))}
                 </select>
+                {selectedSnapshot && (
+                    <button
+                        onClick={() => handleDeleteSnapshot(selectedSnapshot)}
+                        style={{ marginLeft: "10px", backgroundColor: "#dc3545", color: "white", border: "none", padding: "5px 10px", borderRadius: "4px" }}
+                    >
+                        Slet snapshot
+                    </button>
+                )}
             </div>
 
             {renderSortButtons()}

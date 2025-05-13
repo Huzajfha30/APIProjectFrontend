@@ -8,13 +8,42 @@ const MovieVotesGraph = ({ movieTitle }) => {
         if (!movieTitle) return;
 
         fetch(`http://localhost:8080/movies/movie-vote-history/by-title/${encodeURIComponent(movieTitle)}`)
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error(`HTTP error! Status: ${res.status}`);
+                }
+                return res.json();
+            })
             .then(history => {
                 console.log("Fetched vote history:", history);
-                const formatted = history.map(snap => ({
-                    date: new Date(snap.snapshots.createdAt).toLocaleDateString(),
-                    votes: snap.votes
-                }));
+
+                // Check if history exists and is an array
+                if (!history || !Array.isArray(history) || history.length === 0) {
+                    console.warn("No vote history data received");
+                    setData([]);
+                    return;
+                }
+
+                // First, log the structure of the first item to debug
+                console.log("Example data structure:", history[0]);
+
+                // Try to create formatted data safely
+                const formatted = history.map(snap => {
+                    // Adapt this based on your actual API response structure
+                    const createdAt = snap.snapshots?.createdAt ||
+                        snap.snapshot?.createdAt ||
+                        snap.createdAt ||
+                        new Date().toISOString();
+
+                    const votes = snap.votes || snap.voteCount || 0;
+
+                    return {
+                        date: new Date(createdAt).toLocaleDateString(),
+                        votes: votes
+                    };
+                });
+
+                console.log("Formatted data for chart:", formatted);
                 setData(formatted);
             })
             .catch(err => console.error("Error fetching vote history:", err));

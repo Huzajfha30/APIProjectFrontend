@@ -21,12 +21,27 @@ const UpcomingMovies = () => {
         }
     };
 
-
     const fetchMoviesForSnapshot = async (snapshotId) => {
         try {
             const res = await fetch(`http://localhost:8080/movies/upcoming-snapshots/${snapshotId}`);
             const data = await res.json();
-            setMovies(data);
+            console.log("Raw data:", data);
+
+            // Transform the data to match what your component expects
+            const mappedMovies = data.map(snapshot => {
+                const movie = snapshot.movie || {};
+                return {
+                    tmdbId: movie.tmdbId,
+                    title: movie.title,
+                    posterPath: movie.posterPath,
+                    releaseDate: movie.releaseDate,
+                    rating: snapshot.rating,
+                    voteCount: snapshot.voteCount
+                };
+            });
+
+            console.log("Mapped movies:", mappedMovies);
+            setMovies(mappedMovies);
         } catch (err) {
             console.error("Fejl ved hentning af film:", err);
         }
@@ -53,7 +68,6 @@ const UpcomingMovies = () => {
             alert("Kunne ikke slette snapshot: " + error.message);
         }
     };
-
 
     const handleUpdate = async () => {
         setLoading(true);
@@ -114,9 +128,9 @@ const UpcomingMovies = () => {
             </div>
 
             <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-                {movies.map((movie) => (
+                {movies.map((movie, index) => (
                     <div
-                        key={`${movie.tmdbId}-${movie.title}`}
+                        key={movie.tmdbId ? `${movie.tmdbId}-${movie.title || 'untitled'}` : `movie-${index}`}
                         className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition overflow-hidden"
                     >
                         <div className="h-[400px] bg-gray-200 flex justify-center items-center">
@@ -144,7 +158,6 @@ const UpcomingMovies = () => {
                     </div>
                 ))}
             </div>
-
         </div>
     );
 };

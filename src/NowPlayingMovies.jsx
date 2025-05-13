@@ -97,7 +97,7 @@ const NowPlayingMovies = () => {
                         title: movie.title,
                         release_date: movie.releaseDate,
                         rating: movieSnapshot.rating, // Brug rating i stedet for vote_average
-                        votes: movieSnapshot.votes      // Brug votes i stedet for vote_count
+                        votes: movieSnapshot.voteCount      // Brug voteCount i stedet for vote_count
                     };
                 });
 

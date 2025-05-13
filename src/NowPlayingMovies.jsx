@@ -95,9 +95,11 @@ const NowPlayingMovies = () => {
                     return {
                         id: movie.id,
                         title: movie.title,
+                        posterPath: movie.posterPath,
                         release_date: movie.releaseDate,
                         rating: movieSnapshot.rating, // Brug rating i stedet for vote_average
-                        votes: movieSnapshot.voteCount      // Brug voteCount i stedet for vote_count
+                        votes: movieSnapshot.voteCount
+                        // Brug voteCount i stedet for vote_count
                     };
                 });
 
@@ -191,6 +193,16 @@ const NowPlayingMovies = () => {
                             <strong>{movie.title}</strong> – {new Date(movie.release_date).toISOString().slice(0, 10)}
                             <br />
                             Rating: {movie.rating} /10 – Votes: {movie.votes}
+                            {movie.posterPath && (
+                                <div>
+                                    <img
+                                        src={`https://image.tmdb.org/t/p/w200${movie.posterPath}`}
+                                        alt={`${movie.title} poster`}
+                                        style={{ marginTop: "0.5rem", borderRadius: "8px" }}
+                                    />
+                                </div>
+                            )}
+
                         </li>
                     ))}
                 </ul>

@@ -24,12 +24,11 @@ const MovieVotesGraph = ({ movieTitle }) => {
                     return;
                 }
 
-                // First, log the structure of the first item to debug
+                // Log the structure of the first item to debug
                 console.log("Example data structure:", history[0]);
 
-                // Try to create formatted data safely
+                // Format data with proper date handling
                 const formatted = history.map(snap => {
-                    // Adapt this based on your actual API response structure
                     const createdAt = snap.snapshots?.createdAt ||
                         snap.snapshot?.createdAt ||
                         snap.createdAt ||
@@ -37,14 +36,22 @@ const MovieVotesGraph = ({ movieTitle }) => {
 
                     const votes = snap.votes || snap.voteCount || 0;
 
+                    // Store the actual Date object for sorting
                     return {
+                        rawDate: new Date(createdAt),
                         date: new Date(createdAt).toLocaleDateString(),
                         votes: votes
                     };
                 });
 
-                console.log("Formatted data for chart:", formatted);
-                setData(formatted);
+                // Sort by date (oldest to newest) so newest appears on right
+                const sortedData = formatted.sort((a, b) => a.rawDate - b.rawDate);
+
+                // Remove the rawDate property before setting state
+                const cleanData = sortedData.map(({rawDate, ...rest}) => rest);
+
+                console.log("Sorted data for chart:", cleanData);
+                setData(cleanData);
             })
             .catch(err => console.error("Error fetching vote history:", err));
     }, [movieTitle]);

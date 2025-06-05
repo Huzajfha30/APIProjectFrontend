@@ -1,74 +1,64 @@
 import React, { useEffect, useState } from "react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
+import { Line } from "react-chartjs-2";
+import "chart.js/auto";
 
-const MovieVotesGraph = ({ movieTitle }) => {
-    const [data, setData] = useState([]);
+const UpcomingMoviesCountGraph = () => {
+    const [loading, setLoading] = useState(false);
+    const [chartData, setChartData] = useState(null);
 
-    useEffect(() => {
-        if (!movieTitle) return;
+    const fetchData = async () => {
+        setLoading(true);
+        try {
+            // Hent alle snapshots (med dato)
+            const snapshotRes = await fetch("http://localhost:8080/movies/upcoming-snapshot-dates");
+            const snapshots = await snapshotRes.json();
 
-        fetch(`http://localhost:8080/movies/movie-vote-history/by-title/${encodeURIComponent(movieTitle)}`)
-            .then(res => {
-                if (!res.ok) {
-                    throw new Error(`HTTP error! Status: ${res.status}`);
-                }
-                return res.json();
-            })
-            .then(history => {
-                console.log("Fetched vote history:", history);
+            // Sorter snapshots efter createdAt stigende
+            snapshots.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
-                // Check if history exists and is an array
-                if (!history || !Array.isArray(history) || history.length === 0) {
-                    console.warn("No vote history data received");
-                    setData([]);
-                    return;
-                }
+            const labels = snapshots.map(s => new Date(s.createdAt).toLocaleDateString());
 
-                // Log the structure of the first item to debug
-                console.log("Example data structure:", history[0]);
+            // For hvert snapshot hent antal film i snapshot
+            const counts = [];
 
-                // Format data with proper date handling
-                const formatted = history.map(snap => {
-                    const createdAt = snap.snapshots?.createdAt ||
-                        snap.snapshot?.createdAt ||
-                        snap.createdAt ||
-                        new Date().toISOString();
+            for (const snap of snapshots) {
+                const res = await fetch(`http://localhost:8080/movies/upcoming-snapshots/${snap.id}`);
+                const movies = await res.json();
+                counts.push(movies.length);  // antal film i snapshot
+            }
 
-                    const votes = snap.votes || snap.voteCount || 0;
+            const datasets = [
+                {
+                    label: "Antal film i snapshot",
+                    data: counts,
+                    borderColor: "#007bff",
+                    backgroundColor: "#007bff",
+                    fill: false,
+                    tension: 0.2,
+                },
+            ];
 
-                    // Store the actual Date object for sorting
-                    return {
-                        rawDate: new Date(createdAt),
-                        date: new Date(createdAt).toLocaleDateString(),
-                        votes: votes
-                    };
-                });
+            setChartData({ labels, datasets });
+        } catch (e) {
+            console.error("Fejl ved hentning af data:", e);
+            setChartData(null);
+        }
+        setLoading(false);
+    };
 
-                // Sort by date (oldest to newest) so newest appears on right
-                const sortedData = formatted.sort((a, b) => a.rawDate - b.rawDate);
+    React.useEffect(() => {
+        fetchData();
+    }, []);
 
-                // Remove the rawDate property before setting state
-                const cleanData = sortedData.map(({rawDate, ...rest}) => rest);
-
-                console.log("Sorted data for chart:", cleanData);
-                setData(cleanData);
-            })
-            .catch(err => console.error("Error fetching vote history:", err));
-    }, [movieTitle]);
+    if (loading) return <p>Indlæser data...</p>;
+    if (!chartData) return <p>Ingen data tilgængelig.</p>;
 
     return (
         <div>
-            <h2>Votes over time</h2>
-            <LineChart width={600} height={300} data={data}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="votes" stroke="#8884d8" />
-            </LineChart>
+            <h2>Antal kommende film pr. snapshot over tid</h2>
+            <Line data={chartData} />
         </div>
     );
 };
 
-export default MovieVotesGraph;
+export default UpcomingMoviesCountGraph;

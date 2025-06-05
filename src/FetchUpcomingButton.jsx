@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { CalendarDays, Clapperboard } from "lucide-react";
-import { motion } from "framer-motion";
 
 const UpcomingMovies = () => {
     const [movies, setMovies] = useState([]);

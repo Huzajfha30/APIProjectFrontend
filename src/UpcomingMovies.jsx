@@ -7,65 +7,75 @@ const UpcomingMovies = () => {
     const [selectedSnapshot, setSelectedSnapshot] = useState("");
     const [loading, setLoading] = useState(false);
 
+    // Hent snapshot-datoer
     const fetchSnapshotDates = async () => {
         try {
             const res = await fetch("http://localhost:8080/movies/upcoming-snapshot-dates");
             const data = await res.json();
             setSnapshots(data);
+
             if (data.length > 0) {
-                setSelectedSnapshot(data[data.length - 1].id);
-                fetchMoviesForSnapshot(data[data.length - 1].id);
+                const latestId = data[data.length - 1].id;
+                setSelectedSnapshot(latestId);
+                fetchMoviesForSnapshot(latestId);
             }
         } catch (err) {
             console.error("Fejl ved hentning af snapshots:", err);
         }
     };
 
+    // Hent film for et bestemt snapshot
     const fetchMoviesForSnapshot = async (snapshotId) => {
         try {
             const res = await fetch(`http://localhost:8080/movies/upcoming-snapshots/${snapshotId}`);
             const data = await res.json();
-            console.log("Raw data:", data);
 
-            // Transform the data to match what your component expects
-            const mappedMovies = data.map(snapshot => {
-                const movie = snapshot.movie || {};
+            const mapped = data.map(entry => {
+                const movie = entry.movie || {};
                 return {
                     tmdbId: movie.tmdbId,
                     title: movie.title,
-                    posterPath: movie.posterPath,
                     releaseDate: movie.releaseDate,
-                    rating: snapshot.rating,
-                    voteCount: snapshot.voteCount
+                    rating: entry.rating,
+                    voteCount: entry.voteCount,
+                    posterPath: movie.posterPath,
                 };
             });
 
-            console.log("Mapped movies:", mappedMovies);
-            setMovies(mappedMovies);
+            setMovies(mapped);
         } catch (err) {
             console.error("Fejl ved hentning af film:", err);
         }
     };
 
-    const handleDeleteSnapshot = async (snapshotId) => {
-        if (!window.confirm('Er du sikker på at du vil slette dette snapshot?')) {
+    // Slet et snapshot
+    const handleDeleteSnapshot = async () => {
+        if (!selectedSnapshot) return;
+
+        if (!window.confirm("Er du sikker på, at du vil slette dette snapshot?")) {
             return;
         }
 
+        setLoading(true);
+
         try {
-            const response = await fetch(`http://localhost:8080/movies/upcoming-snapshot/${snapshotId}`, {
-                method: 'DELETE',
+            const response = await fetch(`http://localhost:8080/movies/upcoming-snapshot/${selectedSnapshot}`, {
+                method: "DELETE",
             });
 
-            if (response.ok) {
-                await fetchSnapshotDates();
-                // Rest of your handling code...
-            } else {
-                throw new Error('Failed to delete snapshot');
+            if (!response.ok) {
+                throw new Error("Kunne ikke slette snapshot");
             }
+
+            // Opdater snapshot liste og nulstil valg hvis slettet
+            await fetchSnapshotDates();
+            setSelectedSnapshot("");
+            setMovies([]);
         } catch (error) {
-            console.error("Error deleting snapshot:", error);
-            alert("Kunne ikke slette snapshot: " + error.message);
+            alert(error.message);
+            console.error(error);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -76,13 +86,15 @@ const UpcomingMovies = () => {
         setLoading(false);
     };
 
+    const handleSnapshotChange = (e) => {
+        const newId = e.target.value;
+        setSelectedSnapshot(newId);
+        fetchMoviesForSnapshot(newId);
+    };
+
     useEffect(() => {
         fetchSnapshotDates();
     }, []);
-
-    useEffect(() => {
-        if (selectedSnapshot) fetchMoviesForSnapshot(selectedSnapshot);
-    }, [selectedSnapshot]);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-sky-50 to-blue-100 py-12 px-8">
@@ -101,57 +113,67 @@ const UpcomingMovies = () => {
                         {loading ? "Opdaterer..." : "Opdater"}
                     </button>
 
-                    <div className="flex items-center">
-                        <select
-                            value={selectedSnapshot}
-                            onChange={(e) => setSelectedSnapshot(e.target.value)}
-                            className="border border-gray-300 rounded-lg px-4 py-2 shadow-sm bg-white"
-                        >
-                            <option value="">Vælg snapshot-dato</option>
-                            {snapshots.map((snap) => (
-                                <option key={snap.id} value={snap.id}>
-                                    {new Date(snap.createdAt).toLocaleString("da-DK")}
-                                </option>
-                            ))}
-                        </select>
+                    <select
+                        value={selectedSnapshot}
+                        onChange={handleSnapshotChange}
+                        className="border border-gray-300 rounded-lg px-4 py-2 shadow-sm bg-white"
+                    >
+                        <option value="">Vælg snapshot-dato</option>
+                        {snapshots.map(snap => (
+                            <option key={snap.id} value={snap.id}>
+                                {new Date(snap.createdAt).toLocaleString("da-DK")}
+                            </option>
+                        ))}
+                    </select>
 
-                        {selectedSnapshot && (
-                            <button
-                                onClick={() => handleDeleteSnapshot(selectedSnapshot)}
-                                className="ml-2 bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition"
-                            >
-                                Slet
-                            </button>
-                        )}
-                    </div>
+                    {selectedSnapshot && (
+                        <button
+                            onClick={handleDeleteSnapshot}
+                            className="bg-red-600 text-white font-semibold px-4 py-2 rounded-lg shadow hover:bg-red-700 transition"
+                            disabled={loading}
+                        >
+                            {loading ? "Sletter..." : "Slet snapshot"}
+                        </button>
+                    )}
                 </div>
             </div>
 
             <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+                {movies.length === 0 && (
+                    <p className="text-center text-gray-600 col-span-full">
+                        Ingen film fundet for det valgte snapshot.
+                    </p>
+                )}
+
                 {movies.map((movie, index) => (
                     <div
-                        key={movie.tmdbId ? `${movie.tmdbId}-${movie.title || 'untitled'}` : `movie-${index}`}
-                        className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition overflow-hidden"
+                        key={`${movie.tmdbId}-${index}`}
+                        className="bg-white rounded-xl shadow hover:shadow-lg transition overflow-hidden"
                     >
-                        <div className="h-[400px] bg-gray-200 flex justify-center items-center">
-                            <img
-                                src={`https://image.tmdb.org/t/p/w500${movie.posterPath || ""}`}
-                                alt={movie.title}
-                                className="w-full h-full object-cover"
-                                onError={(e) => (e.target.style.display = "none")}
-                            />
+                        <div className="h-[400px] bg-gray-200">
+                            {movie.posterPath ? (
+                                <img
+                                    src={`https://image.tmdb.org/t/p/w500${movie.posterPath}`}
+                                    alt={movie.title}
+                                    className="w-full h-full object-cover"
+                                />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                    Ingen billede
+                                </div>
+                            )}
                         </div>
-                        <div className="p-5">
-                            <h2 className="text-xl font-semibold text-blue-800 mb-2">{movie.title}</h2>
-                            <div className="flex items-center text-gray-600 text-sm mb-1">
+                        <div className="p-4">
+                            <h2 className="text-lg font-semibold text-blue-800">{movie.title}</h2>
+                            <div className="flex items-center text-gray-600 text-sm mt-2">
                                 <CalendarDays className="w-4 h-4 mr-2" />
                                 {new Date(movie.releaseDate).toLocaleDateString("da-DK", {
                                     day: "2-digit",
                                     month: "long",
-                                    year: "numeric",
+                                    year: "numeric"
                                 })}
                             </div>
-                            <p className="text-sm text-gray-500 mt-2">
+                            <p className="text-sm text-gray-500 mt-1">
                                 ⭐ {movie.rating} | 🗳 {movie.voteCount} stemmer
                             </p>
                         </div>
